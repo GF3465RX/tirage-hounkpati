@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tirage au sort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #10182c; --bg-2: #182242;
+    --paper: #f8f4e8; --ink: #14192b; --muted: #6b7290;
+    --gold: #cda23c; --gold-dark: #a5801f;
+    --line: rgba(20, 25, 43, 0.14); --shadow: rgba(9, 13, 26, 0.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0a0f1e; --bg-2: #121a34; }
+  }
+  :root[data-theme="dark"] { --bg: #0a0f1e; --bg-2: #121a34; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    background: radial-gradient(circle at 50% -10%, var(--bg-2), var(--bg) 70%);
+    color: var(--paper);
+    font-family: 'Inter', system-ui, -apple-system, Segoe UI, sans-serif;
+    display: flex; justify-content: center;
+    padding: 40px 20px 60px; min-height: 100vh;
+  }
+  .wrap { width: 100%; max-width: 420px; text-align: center; }
+  .eyebrow { font-size: 13px; color: var(--gold); margin: 0 0 6px; font-weight: 500; }
+  h1 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 32px; margin: 0 0 10px; line-height: 1.12; }
+  .sub { color: rgba(248, 244, 232, 0.7); font-size: 15px; margin: 0 0 34px; line-height: 1.5; }
+
+  .ticket { position: relative; background: var(--paper); color: var(--ink); border-radius: 18px; padding: 38px 26px 30px; box-shadow: 0 18px 40px var(--shadow); overflow: hidden; min-height: 150px; }
+  .ticket::before, .ticket::after { content: ""; position: absolute; top: 50%; width: 26px; height: 26px; border-radius: 50%; background: var(--bg); transform: translateY(-50%); }
+  .ticket::before { left: -13px; }
+  .ticket::after { right: -13px; }
+  .ticket-notch { position: absolute; left: 24px; right: 24px; top: 50%; border-top: 2px dashed var(--line); transform: translateY(-50%); }
+
+  .draw-btn { appearance: none; border: none; cursor: pointer; background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%); color: #1c1406; font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 19px; padding: 18px 20px; border-radius: 12px; width: 100%; box-shadow: 0 8px 18px rgba(165, 128, 31, 0.35); transition: transform 0.15s ease, opacity 0.2s ease; }
+  .draw-btn:active { transform: scale(0.97); }
+  .draw-btn:disabled { opacity: 0.6; cursor: default; }
+
+  .reveal-label { font-size: 13px; letter-spacing: 0.04em; color: var(--gold-dark); font-weight: 600; margin: 0 0 2px; }
+  .reveal-num { font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 88px; line-height: 1; margin: 8px 0 6px; color: var(--ink); opacity: 0; transform: scale(0.6); transition: opacity 0.45s ease, transform 0.45s cubic-bezier(.2,1.4,.4,1); }
+  .reveal-num.show { opacity: 1; transform: scale(1); }
+  .reveal-note { font-size: 13px; color: var(--muted); margin: 14px 0 0; line-height: 1.5; }
+  .status-line { margin-top: 14px; font-size: 13.5px; color: var(--muted); min-height: 18px; }
+
+  .footer-note { margin-top: 34px; font-size: 12px; color: rgba(248, 244, 232, 0.4); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Hounkpati ƒomea</p>
+  <h1>Tirage au sort</h1>
+  <p class="sub" id="sub">Appuie sur le bouton pour découvrir ton numéro (1 à 8).</p>
+
+  <div class="ticket" id="ticketArea">
+    <div class="ticket-notch"></div>
+    <button id="drawBtn" class="draw-btn">🎟️ Tirer mon numéro</button>
+    <p class="status-line" id="status"></p>
+  </div>
+
+  <p class="footer-note">Ton numéro reste privé et s'affiche uniquement sur cet appareil.</p>
+</div>
+
+<script>
+(function () {
+  // Numéros 1 à 8, déjà mélangés une fois pour toutes.
+  // La position renvoyée par le compteur partagé pointe vers un numéro ici.
+  const SHUFFLED = [3, 7, 4, 5, 1, 8, 6, 2];
+  const COUNTER_KEY = "hounkpati-fomea-tirage-8-2026";
+  const COUNTER_URL = "https://countapi.mileshilliard.com/api/v1/hit/" + COUNTER_KEY;
+  const STORAGE_KEY = "tirage_hounkpati_8_myNumber";
+
+  const ticketArea = document.getElementById("ticketArea");
+  const statusEl = document.getElementById("status");
+  const subEl = document.getElementById("sub");
+
+  function renderReveal(myNumber) {
+    ticketArea.innerHTML =
+      '<div class="ticket-notch"></div>' +
+      '<p class="reveal-label">Ton numéro</p>' +
+      '<p class="reveal-num" id="numEl">' + myNumber + "</p>" +
+      '<p class="reveal-note">Garde-le pour toi.</p>';
+    requestAnimationFrame(function () {
+      document.getElementById("numEl").classList.add("show");
+    });
+  }
+
+  function setStatus(msg) {
+    const el = document.getElementById("status");
+    if (el) el.textContent = msg || "";
+  }
+
+  function setButtonBusy(busy) {
+    const btn = document.getElementById("drawBtn");
+    if (!btn) return;
+    btn.disabled = busy;
+    btn.textContent = busy ? "Tirage en cours…" : "🎟️ Tirer mon numéro";
+  }
+
+  async function onDraw() {
+    setButtonBusy(true);
+    setStatus("");
+    try {
+      const res = await fetch(COUNTER_URL);
+      if (!res.ok) throw new Error("network");
+      const data = await res.json();
+      const position = parseInt(data.value, 10);
+
+      if (!position || position > SHUFFLED.length) {
+        subEl.textContent = "";
+        ticketArea.innerHTML =
+          '<div class="ticket-notch"></div>' +
+          '<p class="reveal-note">Tous les numéros ont déjà été tirés.</p>';
+        return;
+      }
+
+      const myNumber = SHUFFLED[position - 1];
+      localStorage.setItem(STORAGE_KEY, String(myNumber));
+      renderReveal(myNumber);
+    } catch (e) {
+      setButtonBusy(false);
+      setStatus("Connexion impossible — réessaie dans quelques secondes.");
+    }
+  }
+
+  function init() {
+    const already = localStorage.getItem(STORAGE_KEY);
+    if (already) {
+      renderReveal(already);
+      return;
+    }
+    const btn = document.getElementById("drawBtn");
+    if (btn) btn.addEventListener("click", onDraw);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
