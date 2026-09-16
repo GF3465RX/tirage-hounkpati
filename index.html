@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ton numéro de tirage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #10182c;
+    --bg-2: #182242;
+    --paper: #f8f4e8;
+    --ink: #14192b;
+    --muted: #6b7290;
+    --gold: #cda23c;
+    --gold-dark: #a5801f;
+    --line: rgba(20, 25, 43, 0.14);
+    --shadow: rgba(9, 13, 26, 0.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0a0f1e; --bg-2: #121a34; }
+  }
+  :root[data-theme="dark"] { --bg: #0a0f1e; --bg-2: #121a34; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    background: radial-gradient(circle at 50% -10%, var(--bg-2), var(--bg) 70%);
+    color: var(--paper);
+    font-family: 'Inter', system-ui, -apple-system, Segoe UI, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px 60px;
+    min-height: 100vh;
+  }
+  .wrap { width: 100%; max-width: 420px; text-align: center; }
+  .eyebrow { font-size: 13px; color: var(--gold); margin: 0 0 6px; font-weight: 500; }
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 30px;
+    margin: 0 0 10px;
+    line-height: 1.15;
+  }
+  .sub { color: rgba(248, 244, 232, 0.7); font-size: 15px; margin: 0 0 34px; line-height: 1.5; }
+
+  .ticket {
+    position: relative;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 18px;
+    padding: 40px 26px 32px;
+    box-shadow: 0 18px 40px var(--shadow);
+    overflow: hidden;
+  }
+  .ticket::before, .ticket::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--bg);
+    transform: translateY(-50%);
+  }
+  .ticket::before { left: -13px; }
+  .ticket::after { right: -13px; }
+  .ticket-notch {
+    position: absolute;
+    left: 24px; right: 24px; top: 50%;
+    border-top: 2px dashed var(--line);
+    transform: translateY(-50%);
+  }
+
+  .reveal-btn {
+    appearance: none;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: #1c1406;
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 19px;
+    padding: 18px 20px;
+    border-radius: 12px;
+    width: 100%;
+    box-shadow: 0 8px 18px rgba(165, 128, 31, 0.35);
+    transition: transform 0.15s ease, opacity 0.25s ease;
+  }
+  .reveal-btn:active { transform: scale(0.97); }
+
+  .reveal-label { font-size: 13px; letter-spacing: 0.04em; color: var(--gold-dark); font-weight: 600; margin: 0 0 2px; }
+  .reveal-num {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700;
+    font-size: 88px;
+    line-height: 1;
+    margin: 8px 0 6px;
+    color: var(--ink);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.45s ease, transform 0.45s cubic-bezier(.2,1.4,.4,1);
+  }
+  .reveal-num.show { opacity: 1; transform: scale(1); }
+  .reveal-note { font-size: 13px; color: var(--muted); margin: 14px 0 0; line-height: 1.5; }
+
+  .error-box .reveal-note { margin-top: 0; }
+
+  .footer-note { margin-top: 34px; font-size: 12px; color: rgba(248, 244, 232, 0.4); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Hounkpati ƒomea</p>
+  <h1 id="title">Ton numéro de tirage</h1>
+  <p class="sub" id="sub">Ce lien t'est destiné personnellement.</p>
+
+  <div class="ticket" id="ticketArea">
+    <div class="ticket-notch"></div>
+  </div>
+
+  <p class="footer-note">Chaque lien envoyé est unique et affiche un numéro différent.</p>
+</div>
+
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get("n");
+  const n = parseInt(raw, 10);
+  const ticketArea = document.getElementById("ticketArea");
+  const valid = Number.isInteger(n) && n >= 1 && n <= 8;
+
+  function renderButton() {
+    ticketArea.innerHTML =
+      '<div class="ticket-notch"></div>' +
+      '<button id="revealBtn" class="reveal-btn">🎟️ Découvrir mon numéro</button>';
+    document.getElementById("revealBtn").addEventListener("click", renderNumber);
+  }
+
+  function renderNumber() {
+    ticketArea.innerHTML =
+      '<div class="ticket-notch"></div>' +
+      '<p class="reveal-label">Ton numéro</p>' +
+      '<p class="reveal-num" id="numEl">' + n + '</p>' +
+      '<p class="reveal-note">Garde-le pour toi.</p>';
+    requestAnimationFrame(function () {
+      document.getElementById("numEl").classList.add("show");
+    });
+  }
+
+  function renderInvalid() {
+    document.getElementById("sub").textContent = "";
+    ticketArea.classList.add("error-box");
+    ticketArea.innerHTML =
+      '<div class="ticket-notch"></div>' +
+      '<p class="reveal-note">Ce lien n\'est pas valide. Demande un nouveau lien à l\'organisateur.</p>';
+  }
+
+  if (valid) {
+    renderButton();
+  } else {
+    renderInvalid();
+  }
+})();
+</script>
+</body>
+</html>
